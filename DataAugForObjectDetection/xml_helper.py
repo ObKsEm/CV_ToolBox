@@ -1,6 +1,8 @@
 # -*- coding=utf-8 -*-
+import os
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as DOC
+
 
 # 从xml文件中提取bounding box信息, 格式为[[x_min, y_min, x_max, y_max, name]]
 def parse_xml(xml_path):
@@ -17,15 +19,16 @@ def parse_xml(xml_path):
     for ix, obj in enumerate(objs):
         name = obj.find('name').text
         box = obj.find('bndbox')
-        x_min = int(box[0].text)
-        y_min = int(box[1].text)
-        x_max = int(box[2].text)
-        y_max = int(box[3].text)
+        x_min = float(box[0].text)
+        y_min = float(box[1].text)
+        x_max = float(box[2].text)
+        y_max = float(box[3].text)
         coords.append([x_min, y_min, x_max, y_max, name])
     return coords
 
-#将bounding box信息写入xml文件中, bouding box格式为[[x_min, y_min, x_max, y_max, name]]
-def generate_xml(img_name,coords,img_size,out_root_path):
+
+# 将bounding box信息写入xml文件中, bouding box格式为[[x_min, y_min, x_max, y_max, name]]
+def generate_xml(img_name, coords, img_size, out_root_path):
     '''
     输入：
         img_name：图片名称，如a.jpg
@@ -38,87 +41,104 @@ def generate_xml(img_name,coords,img_size,out_root_path):
     annotation = doc.createElement('annotation')
     doc.appendChild(annotation)
 
-    title = doc.createElement('folder')
-    title_text = doc.createTextNode('Tianchi')
-    title.appendChild(title_text)
-    annotation.appendChild(title)
+    filename = doc.createElement('filename')
+    filename_text = doc.createTextNode(img_name)
+    filename.appendChild(filename_text)
+    annotation.appendChild(filename)
 
-    title = doc.createElement('filename')
-    title_text = doc.createTextNode(img_name)
-    title.appendChild(title_text)
-    annotation.appendChild(title)
+    path = doc.createElement('path')
+    path_text = doc.createTextNode('/近景-油品/' + img_name[:-4])
+    path.appendChild(path_text)
+    annotation.appendChild(path)
 
     source = doc.createElement('source')
     annotation.appendChild(source)
 
-    title = doc.createElement('database')
-    title_text = doc.createTextNode('The Tianchi Database')
-    title.appendChild(title_text)
-    source.appendChild(title)
+    database = doc.createElement('database')
+    database_text = doc.createTextNode('Unknown')
+    database.appendChild(database_text)
+    source.appendChild(database)
 
-    title = doc.createElement('annotation')
-    title_text = doc.createTextNode('Tianchi')
-    title.appendChild(title_text)
-    source.appendChild(title)
+    amount = doc.createElement('amount')
+    amount_text = doc.createTextNode(str(len(coords)))
+    amount.appendChild(amount_text)
+    annotation.appendChild(amount)
 
     size = doc.createElement('size')
+    width = doc.createElement('width')
+    width_text = doc.createTextNode(str(img_size[1]))
+    width.appendChild(width_text)
+    size.appendChild(width)
+
+    height = doc.createElement('height')
+    height_text = doc.createTextNode(str(img_size[0]))
+    height.appendChild(height_text)
+    size.appendChild(height)
+
+    depth = doc.createElement('depth')
+    depth_text = doc.createTextNode(str(img_size[2]))
+    depth.appendChild(depth_text)
+    size.appendChild(depth)
+
     annotation.appendChild(size)
 
-    title = doc.createElement('width')
-    title_text = doc.createTextNode(str(img_size[1]))
-    title.appendChild(title_text)
-    size.appendChild(title)
-
-    title = doc.createElement('height')
-    title_text = doc.createTextNode(str(img_size[0]))
-    title.appendChild(title_text)
-    size.appendChild(title)
-
-    title = doc.createElement('depth')
-    title_text = doc.createTextNode(str(img_size[2]))
-    title.appendChild(title_text)
-    size.appendChild(title)
+    segmented = doc.createElement('segmented')
+    segmented.appendChild(doc.createTextNode('0'))
+    annotation.appendChild(segmented)
 
     for coord in coords:
 
         object = doc.createElement('object')
-        annotation.appendChild(object)
-
-        title = doc.createElement('name')
-        title_text = doc.createTextNode(coord[4])
-        title.appendChild(title_text)
-        object.appendChild(title)
+        name = doc.createElement('name')
+        name_text = doc.createTextNode(coord[4])
+        name.appendChild(name_text)
+        object.appendChild(name)
 
         pose = doc.createElement('pose')
         pose.appendChild(doc.createTextNode('Unspecified'))
         object.appendChild(pose)
+
+        xmltype = doc.createElement('type')
+        xmltype.appendChild(doc.createTextNode('rect'))
+        object.appendChild(xmltype)
+
         truncated = doc.createElement('truncated')
         truncated.appendChild(doc.createTextNode('1'))
         object.appendChild(truncated)
+
         difficult = doc.createElement('difficult')
         difficult.appendChild(doc.createTextNode('0'))
         object.appendChild(difficult)
 
         bndbox = doc.createElement('bndbox')
+        xmin = doc.createElement('xmin')
+        xmin_text = doc.createTextNode(str(float(coord[0])))
+        xmin.appendChild(xmin_text)
+        bndbox.appendChild(xmin)
+        ymin = doc.createElement('ymin')
+        ymin_text = doc.createTextNode(str(float(coord[1])))
+        ymin.appendChild(ymin_text)
+        bndbox.appendChild(ymin)
+        xmax = doc.createElement('xmax')
+        xmax_text = doc.createTextNode(str(float(coord[2])))
+        xmax.appendChild(xmax_text)
+        bndbox.appendChild(xmax)
+        ymax = doc.createElement('ymax')
+        ymax_text = doc.createTextNode(str(float(coord[3])))
+        ymax.appendChild(ymax_text)
+        bndbox.appendChild(ymax)
         object.appendChild(bndbox)
-        title = doc.createElement('xmin')
-        title_text = doc.createTextNode(str(int(float(coord[0]))))
-        title.appendChild(title_text)
-        bndbox.appendChild(title)
-        title = doc.createElement('ymin')
-        title_text = doc.createTextNode(str(int(float(coord[1]))))
-        title.appendChild(title_text)
-        bndbox.appendChild(title)
-        title = doc.createElement('xmax')
-        title_text = doc.createTextNode(str(int(float(coord[2]))))
-        title.appendChild(title_text)
-        bndbox.appendChild(title)
-        title = doc.createElement('ymax')
-        title_text = doc.createTextNode(str(int(float(coord[3]))))
-        title.appendChild(title_text)
-        bndbox.appendChild(title)
+
+        width = doc.createElement('width')
+        width.appendChild(doc.createTextNode(str(float(coord[2]) - float(coord[0]))))
+        object.appendChild(width)
+        height = doc.createElement('height')
+        height.appendChild(doc.createTextNode(str(float(coord[3]) - float(coord[1]))))
+        object.appendChild(height)
+
+        annotation.appendChild(object)
 
     # 将DOM对象doc写入文件
-    f = open(os.path.join(out_root_path, img_name[:-4]+'.xml'),'w')
-    f.write(doc.toprettyxml(indent = ''))
+    f = open(os.path.join(out_root_path, img_name[:-4]+'.xml'), 'w')
+    f.write(doc.toprettyxml(indent='\t'))
     f.close()
