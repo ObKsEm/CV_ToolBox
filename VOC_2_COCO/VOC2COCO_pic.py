@@ -1,15 +1,21 @@
 # -*- coding=utf-8 -*-
 import os
 import shutil
+import cv2
 
-source_pic_root_path = './data_voc/VOC2007/JPEGImages'
-target_pic_root_path = './data_coco/coco_train2014'
-if os.path.exists(target_pic_root_path):
-    shutil.rmtree(target_pic_root_path)
-os.makedirs(target_pic_root_path)
-for parent, _, files in os.walk(source_pic_root_path):
-    for file in files:
-        target_pic_path = os.path.join(target_pic_root_path, file)
-        source_pic_path = os.path.join(source_pic_root_path, file)
-        shutil.copyfile(source_pic_path, target_pic_path)
-print('done')
+
+def main():
+
+    source_pic_root_path = '/home/lichengzhi/faster-rcnn.pytorch/data/VOCdevkit/SKU110K'
+    target_pic_root_path = '/home/lichengzhi/maskrcnn-benchmark/datasets/coco/SKU110K'
+    for mode in ['train', 'val', 'test']:
+        with open(os.path.join(source_pic_root_path, 'ImageSets/Main', mode + '.txt')) as f:
+            im_list = f.readlines()
+            for filename in im_list:
+                img_name = filename.strip() + '.jpg'
+                img = cv2.imread(os.path.join(source_pic_root_path, "JPEGImages", img_name))
+                cv2.imwrite(os.path.join(target_pic_root_path, mode, img_name), img)
+
+
+if __name__ == "__main__":
+    main()

@@ -74,26 +74,25 @@ class DataAugmentForObjectDetection():
     
     # 加噪声
     def _addNoise(self, img):
-        '''
+        """
         输入:
             img:图像array
         输出:
             加噪声后的图像array,由于输出的像素是在[0,1]之间,所以得乘以255
-        '''
+        """
         # random.seed(int(time.time())) 
         # return random_noise(img, mode='gaussian', seed=int(time.time()), clip=True)*255
         return random_noise(img, mode='gaussian', clip=True) * 255
 
-    
     # 调整亮度
     def _changeLight(self, img):
         # random.seed(int(time.time()))
-        flag = random.uniform(0.5, 1.5) #flag>1为调暗,小于1为调亮
+        flag = random.uniform(0.5, 1.5) # flag>1为调暗,小于1为调亮
         return exposure.adjust_gamma(img, flag)
     
     # cutout
     def _cutout(self, img, bboxes, length=100, n_holes=1, threshold=0.5):
-        '''
+        """
         原版本：https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
         Randomly mask out one or more patches from an image.
         Args:
@@ -101,13 +100,13 @@ class DataAugmentForObjectDetection():
             bboxes : 框的坐标
             n_holes (int): Number of patches to cut out of each image.
             length (int): The length (in pixels) of each square patch.
-        '''
+        """
         
         def cal_iou(boxA, boxB):
-            '''
+            """
             boxA, boxB为两个框，返回iou
             boxB为bouding box
-            '''
+            """
 
             # determine the (x, y)-coordinates of the intersection rectangle
             xA = max(boxA[0], boxB[0])
@@ -199,8 +198,8 @@ class DataAugmentForObjectDetection():
         rot_move = np.dot(rot_mat, np.array([(nw - w) * 0.5, (nh - h) * 0.5,0]))
         # the move only affects the translation, so update the translation
         # part of the transform
-        rot_mat[0,2] += rot_move[0]
-        rot_mat[1,2] += rot_move[1]
+        rot_mat[0, 2] += rot_move[0]
+        rot_mat[1, 2] += rot_move[1]
         # 仿射变换
         rot_img = cv2.warpAffine(img, rot_mat, (int(math.ceil(nw)), int(math.ceil(nh))), flags=cv2.INTER_LANCZOS4)
 
@@ -262,10 +261,12 @@ class DataAugmentForObjectDetection():
         d_to_bottom = h - y_max     # 包含所有目标框的最小框到底部的距离
 
         # 随机扩展这个最小框
-        crop_x_min = int(x_min - random.uniform(0, d_to_left))
-        crop_y_min = int(y_min - random.uniform(0, d_to_top))
-        crop_x_max = int(x_max + random.uniform(0, d_to_right))
-        crop_y_max = int(y_max + random.uniform(0, d_to_bottom))
+        crop_x_min, crop_x_max, crop_y_min, crop_y_max = -1, -1, -1, -1
+        while not ((0 <= crop_x_min < crop_x_max <= w) and (0 <= crop_y_min < crop_y_max <= h)):
+            crop_x_min = int(x_min - random.uniform(0, d_to_left))
+            crop_y_min = int(y_min - random.uniform(0, d_to_top))
+            crop_x_max = int(x_max + random.uniform(0, d_to_right))
+            crop_y_max = int(y_max + random.uniform(0, d_to_bottom))
 
         # 随机扩展这个最小框 , 防止别裁的太小
         # crop_x_min = int(x_min - random.uniform(d_to_left//2, d_to_left))
@@ -353,7 +354,7 @@ class DataAugmentForObjectDetection():
             horizon = False
         h, w, _ = img.shape
         if horizon:  # 水平翻转
-            flip_img =  cv2.flip(flip_img, 1)   # 1是水平，-1是水平垂直
+            flip_img = cv2.flip(flip_img, 1)   # 1是水平，-1是水平垂直
         else:
             flip_img = cv2.flip(flip_img, 0)
 
@@ -393,7 +394,7 @@ class DataAugmentForObjectDetection():
                 print('旋转')
                 change_num += 1
                 # angle = random.uniform(-self.max_rotation_angle, self.max_rotation_angle)
-                angle = random.sample([90, 180, 270],1)[0]
+                angle = random.sample([90, 180, 270], 1)[0]
                 scale = random.uniform(0.7, 0.8)
                 img, bboxes = self._rotate_img_bbox(img, bboxes, angle, scale)
             
@@ -423,7 +424,7 @@ class DataAugmentForObjectDetection():
                 change_num += 1
                 img, bboxes = self._filp_pic_bboxes(img, bboxes)
             print('\n')
-        # print('------')
+        print('------')
         return img, bboxes
             
 
@@ -433,9 +434,10 @@ if __name__ == '__main__':
 
     dataAug = DataAugmentForObjectDetection()
 
-    source_pic_root_path = '../data/JPEGImages'
-    source_xml_root_path = '../data/Annotations'
-
+    source_pic_root_path = '/home/lichengzhi/CV_ToolBox/data/uav/syn/JPEGImages'
+    source_xml_root_path = '/home/lichengzhi/CV_ToolBox/data/uav/syn/Annotations'
+    target_pic_root_path = '/home/lichengzhi/CV_ToolBox/data/uav/syn/JPEGImages'
+    target_xml_root_path = '/home/lichengzhi/CV_ToolBox/data/uav/syn/Annotations'
     for parent, _, files in os.walk(source_pic_root_path):
         for file in files:
             basename = file.replace(' ', '')
@@ -443,26 +445,25 @@ if __name__ == '__main__':
             basename = basename[: p]
             cnt = 0
             print('Augmenting image: %s\n' % file)
-            while cnt < need_aug_num:
-
-                pic_path = os.path.join(parent, file)
+            pic_path = os.path.join(parent, file)
+            img = cv2.imread(pic_path)
+            if img is not None:
                 xml_path = os.path.join(source_xml_root_path, file[:-4] + '.xml')
                 coords = parse_xml(xml_path)        # 解析得到box信息，格式为[[x_min,y_min,x_max,y_max,name]]
                 labels = [coord[4] for coord in coords]
                 coords = [coord[:4] for coord in coords]
-
-                img = cv2.imread(pic_path)
-                # show_pic(img, coords)    # 原图
-                name = basename + '_' + str(cnt) + ".jpg"
-                print(' Generating image: %s\n' % name)
-                auged_img, auged_bboxes = dataAug.dataAugment(img, coords)
-                assert (len(auged_bboxes) == len(coords))
-                cv2.imwrite(os.path.join(source_pic_root_path, name), auged_img)
-                auged_coords = auged_bboxes.copy()
-                for i in range(0, len(auged_bboxes)):
-                    auged_coords[i].append(labels[i])
-                generate_xml(name, auged_bboxes, auged_img.shape, source_xml_root_path)
-                cnt += 1
+                while cnt < need_aug_num:
+                    # show_pic(img, coords)    # 原图
+                    name = basename + '_' + str(cnt) + ".jpg"
+                    print(' Generating image: %s\n' % name)
+                    auged_img, auged_bboxes = dataAug.dataAugment(img, coords)
+                    assert (len(auged_bboxes) == len(coords))
+                    cv2.imwrite(os.path.join(target_pic_root_path, name), auged_img)
+                    auged_coords = auged_bboxes.copy()
+                    for i in range(0, len(auged_bboxes)):
+                        auged_coords[i].append(labels[i])
+                    generate_xml(name, auged_bboxes, auged_img.shape, target_xml_root_path)
+                    cnt += 1
 
                 # show_pic(auged_img, auged_bboxes)  # 强化后的图
 

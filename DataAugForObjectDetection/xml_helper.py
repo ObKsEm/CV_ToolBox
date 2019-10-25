@@ -47,7 +47,7 @@ def generate_xml(img_name, coords, img_size, out_root_path):
     annotation.appendChild(filename)
 
     path = doc.createElement('path')
-    path_text = doc.createTextNode('/近景-油品/' + img_name[:-4])
+    path_text = doc.createTextNode(img_name[:-4])
     path.appendChild(path_text)
     annotation.appendChild(path)
 
