@@ -103,7 +103,7 @@ def generate_xml(img_name, coords, img_size, out_root_path):
         object.appendChild(xmltype)
 
         truncated = doc.createElement('truncated')
-        truncated.appendChild(doc.createTextNode('1'))
+        truncated.appendChild(doc.createTextNode('0'))
         object.appendChild(truncated)
 
         difficult = doc.createElement('difficult')

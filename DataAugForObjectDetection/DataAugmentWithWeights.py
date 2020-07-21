@@ -434,10 +434,10 @@ if __name__ == '__main__':
 
     dataAug = DataAugmentForObjectDetection()
 
-    source_pic_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/crto/2020.07.14/JPEGImages'
-    source_xml_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/crto/2020.07.14/Annotations'
-    target_pic_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/crto/2020.07.14/JPEGImages_aug'
-    target_xml_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/crto/2020.07.14/Annotations_aug'
+    source_pic_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/2020.06.03/JPEGImages'
+    source_xml_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/2020.06.03/Annotations'
+    target_pic_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/2020.06.03/JPEGImages_aug'
+    target_xml_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/2020.06.03/Annotations_aug'
     if not os.path.exists(target_pic_root_path):
         os.makedirs(target_pic_root_path)
     if not os.path.exists(target_xml_root_path):
@@ -469,10 +469,3 @@ if __name__ == '__main__':
                         auged_coords[i].append(labels[i])
                     generate_xml(name, auged_bboxes, auged_img.shape, target_xml_root_path)
                     cnt += 1
-
-                # show_pic(auged_img, auged_bboxes)  # 强化后的图
-
-
-
-
-
