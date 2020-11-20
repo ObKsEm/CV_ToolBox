@@ -4,7 +4,7 @@ import os
 import cv2
 import xml.etree.ElementTree as ET
 import shutil
-
+from mmdet.datasets.Ultra4Coco import Ultra4CocoDataset
 
 # 从xml文件中提取bounding box信息, 格式为[[x_min, y_min, x_max, y_max, name]]
 def parse_xml(xml_path):
@@ -42,80 +42,10 @@ def convert(root_path, target_json_root_path):
     # 打开类别标签
     # with open(os.path.join(root_path, 'classes.txt')) as f:
     #     classes = f.read().strip().split()
-    classes = (
-        'FB_ICON_000000',
-        'FB_ICON_000001',
-        'FB_ICON_000002',
-        'FB_ICON_000003',
-        'FB_ICON_000004',
-        'FB_ICON_000005',
-        'FB_ICON_000006',
-        'FB_ICON_000007',
-        'FB_ICON_000008',
-        'FB_ICON_000009',
-        'FB_ICON_000011',
-        'FB_ICON_000012',
-        'FB_ICON_000013',
-        'FB_ICON_000014',
-        'FB_ICON_000015',
-        'FB_ICON_000016',
-        'FB_ICON_000017',
-        'FB_ICON_000018',
-        'FB_ICON_000022',
-        'FB_ICON_000024',
-        'FB_ICON_000025',
-        'FB_ICON_000026',
-        'FB_ICON_000027',
-        'FB_ICON_000028',
-        'FB_ICON_000029',
-        'FB_ICON_000030',
-        'FB_ICON_000031',
-        'FB_ICON_000032',
-        'FB_ICON_000033',
-        'FB_ICON_000034',
-        'FB_ICON_000035',
-        'FB_ICON_000036',
-        'FB_ICON_000043',
-        'FB_ICON_000044',
-        'FB_ICON_000045',
-        'FB_ICON_000046',
-        'FB_ICON_000047',
-        'FB_ICON_000048',
-        'FB_ICON_000049',
-        'FB_ICON_000050',
-        'FB_ICON_000051',
-        'FB_ICON_000052',
-        'FB_ICON_000053',
-        'FB_ICON_000054',
-        'FB_ICON_000055',
-        'FB_ICON_000056',
-        'FB_ICON_000057',
-        'FB_ICON_000058',
-        'FB_ICON_000059',
-        'FB_ICON_000060',
-        'FB_ICON_000061',
-        'FB_ICON_000062',
-        'FB_ICON_000063',
-        'FB_ICON_000064',
-        'FB_ICON_000065'
-    )
+    classes = Ultra4CocoDataset.CLASSES
     # 生成类别标签
-    # classes = {
-    #     'KV板-法拉利70年创新合作伙伴',
-    # }
-    # classes = (
-    #     '壳牌恒护超凡喜力系列 1L',
-    #     '壳牌恒护超凡喜力系列 4L',
-    #     '壳牌先锋超凡喜力系列 4L',
-    #     '壳牌先锋超凡喜力系列 1L',
-    #     '壳牌超凡喜力系列 1L',
-    #     '壳牌超凡喜力系列 4L',
-    #     '壳牌极净超凡喜力系列 1L',
-    #     '壳牌极净超凡喜力系列 4L',
-    #     '其他'
-    # )
     categories = {}
-    for i, cls in enumerate(classes, 0):
+    for i, cls in enumerate(classes, 1):
         categories[cls] = i  # mark
 
     print('---------------- generate categories ---------------')
@@ -223,5 +153,5 @@ def convert(root_path, target_json_root_path):
 
 
 if __name__ == '__main__':
-    convert(root_path='/home/lichengzhi/mmdetection/data/VOCdevkit/rzx/2020.04.17',
-            target_json_root_path='/home/lichengzhi/detectron2/data/rzx')
+    convert(root_path='/home/lichengzhi/mmdetection/data/VOCdevkit/shell/2020.05.26',
+            target_json_root_path='/home/lichengzhi/mmdetection/data/coco/shell/2020.05.26')
