@@ -55,7 +55,7 @@ def show_pic(img, bboxes=None):
 
 # 图像均为cv2读取
 class DataAugmentForObjectDetection():
-    def __init__(self, rotation_rate=0.5, max_rotation_angle=5, 
+    def __init__(self, rotation_rate=0.5, max_rotation_angle=5,
                 crop_rate=0.5, shift_rate=0.5, change_light_rate=0.5,
                 add_noise_rate=0.5, flip_rate=0.5, 
                 cutout_rate=0.5, cut_out_length=50, cut_out_holes=1, cut_out_threshold=0.5):
@@ -171,12 +171,13 @@ class DataAugmentForObjectDetection():
         return img
 
     # 旋转
-    def _rotate_img_bbox(self, img, bboxes, angle=5, scale=1.):
+    def _rotate_img_bbox(self, img, bboxes, polys, angle=5, scale=1.):
         """
         参考:https://blog.csdn.net/u014540717/article/details/53301195crop_rate
         输入:
             img:图像array,(h,w,c)
             bboxes:该图像包含的所有boundingboxs,一个list,每个元素为[x_min, y_min, x_max, y_max],要确保是数值
+            polys:增加mask轮廓点,各点应该包含在boundingbox中
             angle:旋转角度
             scale:默认1
         输出:
@@ -195,7 +196,7 @@ class DataAugmentForObjectDetection():
         rot_mat = cv2.getRotationMatrix2D((nw * 0.5, nh * 0.5), angle, scale)
         # calculate the move from the old center to the new center combined
         # with the rotation
-        rot_move = np.dot(rot_mat, np.array([(nw - w) * 0.5, (nh - h) * 0.5,0]))
+        rot_move = np.dot(rot_mat, np.array([(nw - w) * 0.5, (nh - h) * 0.5, 0]))
         # the move only affects the translation, so update the translation
         # part of the transform
         rot_mat[0, 2] += rot_move[0]
@@ -207,37 +208,50 @@ class DataAugmentForObjectDetection():
         # rot_mat是最终的旋转矩阵
         # 获取原始bbox的四个中点，然后将这四个点转换到旋转后的坐标系下
         rot_bboxes = list()
-        for bbox in bboxes:
+        rot_polys = list()
+        for bbox, poly in zip(bboxes, polys):
             xmin = bbox[0]
             ymin = bbox[1]
             xmax = bbox[2]
             ymax = bbox[3]
-            point1 = np.dot(rot_mat, np.array([(xmin + xmax) / 2, ymin, 1]))
-            point2 = np.dot(rot_mat, np.array([xmax, (ymin + ymax) / 2, 1]))
-            point3 = np.dot(rot_mat, np.array([(xmin + xmax) / 2, ymax, 1]))
-            point4 = np.dot(rot_mat, np.array([xmin, (ymin + ymax) / 2, 1]))
+            # point1 = np.dot(rot_mat, np.array([(xmin + xmax) / 2, ymin, 1]))  # 旋转中点
+            # point2 = np.dot(rot_mat, np.array([xmax, (ymin + ymax / 2), 1]))
+            # point3 = np.dot(rot_mat, np.array([(xmin + xmax) / 2, ymax, 1]))
+            # point4 = np.dot(rot_mat, np.array([xmax, (ymin + ymax) / 2, 1]))
+            point1 = np.dot(rot_mat, np.array([xmin, ymin, 1]))  # 旋转顶点
+            point2 = np.dot(rot_mat, np.array([xmax, ymin, 1]))
+            point3 = np.dot(rot_mat, np.array([xmax, ymax, 1]))
+            point4 = np.dot(rot_mat, np.array([xmin, ymax, 1]))
+            poly1 = np.dot(rot_mat, np.array([poly[0][0], poly[0][1], 1]))
+            poly2 = np.dot(rot_mat, np.array([poly[1][0], poly[1][1], 1]))
+            poly3 = np.dot(rot_mat, np.array([poly[2][0], poly[2][1], 1]))
+            poly4 = np.dot(rot_mat, np.array([poly[3][0], poly[3][1], 1]))
             # 合并np.array
             concat = np.vstack((point1, point2, point3, point4))
+            poly_concat = np.vstack((poly1, poly2, poly3, poly4))
             # 改变array类型
             concat = concat.astype(np.int32)
+            poly_concat = poly_concat.astype(np.int32)
             # 得到旋转后的坐标
             rx, ry, rw, rh = cv2.boundingRect(concat)
             rx_min = rx
             ry_min = ry
-            rx_max = rx+rw
-            ry_max = ry+rh
+            rx_max = rx + rw
+            ry_max = ry + rh
             # 加入list中
             rot_bboxes.append([rx_min, ry_min, rx_max, ry_max])
+            rot_polys.append(poly_concat.tolist())
         
-        return rot_img, rot_bboxes
+        return rot_img, rot_bboxes, rot_polys
 
     # 裁剪
-    def _crop_img_bboxes(self, img, bboxes):
+    def _crop_img_bboxes(self, img, bboxes, polys):
         """
         裁剪后的图片要包含所有的框
         输入:
             img:图像array
             bboxes:该图像包含的所有boundingboxs,一个list,每个元素为[x_min, y_min, x_max, y_max],要确保是数值
+            polys:增加mask轮廓点,各点应该包含在boundingbox中
         输出:
             crop_img:裁剪后的图像array
             crop_bboxes:裁剪后的bounding box的坐标list
@@ -285,19 +299,24 @@ class DataAugmentForObjectDetection():
         # ---------------------- 裁剪boundingbox ----------------------
         # 裁剪后的boundingbox坐标计算
         crop_bboxes = list()
-        for bbox in bboxes:
+        crop_polys = list()
+        for bbox, poly in zip(bboxes, polys):
             crop_bboxes.append([bbox[0]-crop_x_min, bbox[1]-crop_y_min, bbox[2]-crop_x_min, bbox[3]-crop_y_min])
-        
-        return crop_img, crop_bboxes
+            crop_poly = list()
+            for point in poly:
+                crop_poly.append([point[0] - crop_x_min, point[1] - crop_y_min])
+            crop_polys.append(crop_poly)
+        return crop_img, crop_bboxes, crop_polys
   
     # 平移
-    def _shift_pic_bboxes(self, img, bboxes):
+    def _shift_pic_bboxes(self, img, bboxes, polys):
         """
         参考:https://blog.csdn.net/sty945/article/details/79387054
         平移后的图片要包含所有的框
         输入:
             img:图像array
             bboxes:该图像包含的所有boundingboxs,一个list,每个元素为[x_min, y_min, x_max, y_max],要确保是数值
+            polys:增加mask轮廓点,各点应该被包含在boundingbox中
         输出:
             shift_img:平移后的图像array
             shift_bboxes:平移后的bounding box的坐标list
@@ -328,19 +347,25 @@ class DataAugmentForObjectDetection():
 
         # ---------------------- 平移boundingbox ----------------------
         shift_bboxes = list()
-        for bbox in bboxes:
+        shift_polys = list()
+        for bbox, poly in zip(bboxes, polys):
             shift_bboxes.append([bbox[0]+x, bbox[1]+y, bbox[2]+x, bbox[3]+y])
+            shift_poly = list()
+            for point in poly:
+                shift_poly.append([point[0] + x, point[1] + y])
+            shift_polys.append(shift_poly)
 
-        return shift_img, shift_bboxes
+        return shift_img, shift_bboxes, shift_polys
 
     # 镜像
-    def _filp_pic_bboxes(self, img, bboxes):
+    def _filp_pic_bboxes(self, img, bboxes, polys):
         """
             参考:https://blog.csdn.net/jningwei/article/details/78753607
             平移后的图片要包含所有的框
             输入:
                 img:图像array
                 bboxes:该图像包含的所有boundingboxs,一个list,每个元素为[x_min, y_min, x_max, y_max],要确保是数值
+                polys:增加mask轮廓点，各店应该被包含在boundingbox中
             输出:
                 flip_img:平移后的图像array
                 flip_bboxes:平移后的bounding box的坐标list
@@ -360,7 +385,8 @@ class DataAugmentForObjectDetection():
 
         # ---------------------- 调整boundingbox ----------------------
         flip_bboxes = list()
-        for box in bboxes:
+        flip_polys = list()
+        for box, poly in zip(bboxes, polys):
             x_min = box[0]
             y_min = box[1]
             x_max = box[2]
@@ -369,10 +395,17 @@ class DataAugmentForObjectDetection():
                 flip_bboxes.append([w-x_max, y_min, w-x_min, y_max])
             else:
                 flip_bboxes.append([x_min, h-y_max, x_max, h-y_min])
+            flip_poly = list()
+            for point in poly:
+                if horizon:
+                    flip_poly.append([w - point[0], point[1])
+                else:
+                    flip_poly.append([point[0], h - point[1])
+            flip_polys.append(flip_poy)
 
-        return flip_img, flip_bboxes
+        return flip_img, flip_bboxes, flip_polys
 
-    def dataAugment(self, img, bboxes):
+    def dataAugment(self, img, bboxes, polys):
         """
         图像增强
         输入:
@@ -388,20 +421,22 @@ class DataAugmentForObjectDetection():
             if random.random() < self.crop_rate:        # 裁剪
                 print('裁剪')
                 change_num += 1
-                img, bboxes = self._crop_img_bboxes(img, bboxes)
+                img, bboxes, polys = self._crop_img_bboxes(img, bboxes)
             
             if random.random() > self.rotation_rate:        # 旋转
                 print('旋转')
                 change_num += 1
                 # angle = random.uniform(-self.max_rotation_angle, self.max_rotation_angle)
+                # angles = [15 * x for x in range(24)]
+                # angle = random.sample(angles, 1)[0]
                 angle = random.sample([90, 180, 270], 1)[0]
                 scale = random.uniform(0.7, 0.8)
-                img, bboxes = self._rotate_img_bbox(img, bboxes, angle, scale)
+                img, bboxes, polys = self._rotate_img_bbox(img, bboxes, polys, angle, scale)
             
             if random.random() < self.shift_rate:           # 平移
                 print('平移')
                 change_num += 1
-                img, bboxes = self._shift_pic_bboxes(img, bboxes)
+                img, bboxes, polys = self._shift_pic_bboxes(img, bboxes, polys)
             
             if random.random() > self.change_light_rate:    # 改变亮度
                 print('亮度')
@@ -422,10 +457,10 @@ class DataAugmentForObjectDetection():
             if random.random() < self.flip_rate:            # 翻转
                 print('翻转')
                 change_num += 1
-                img, bboxes = self._filp_pic_bboxes(img, bboxes)
+                img, bboxes, polys = self._filp_pic_bboxes(img, bboxes)
             print('\n')
         print('------')
-        return img, bboxes
+        return img, bboxes, polys
             
 
 if __name__ == '__main__':
@@ -434,10 +469,10 @@ if __name__ == '__main__':
 
     dataAug = DataAugmentForObjectDetection()
 
-    source_pic_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/crto/2020.07.14/JPEGImages'
-    source_xml_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/crto/2020.07.14/Annotations'
-    target_pic_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/crto/2020.07.14/JPEGImages_aug'
-    target_xml_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/crto/2020.07.14/Annotations_aug'
+    source_pic_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/2020.11.11/JPEGImages_ori'
+    source_xml_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/2020.11.11/Annotations_ori'
+    target_pic_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/2020.11.11/JPEGImages'
+    target_xml_root_path = '/home/lichengzhi/mmdetection/data/VOCdevkit/shell/2020.11.11/Annotations'
     if not os.path.exists(target_pic_root_path):
         os.makedirs(target_pic_root_path)
     if not os.path.exists(target_xml_root_path):
@@ -456,17 +491,21 @@ if __name__ == '__main__':
                 xml_path = os.path.join(source_xml_root_path, file[:-4] + '.xml')
                 coords = parse_xml(xml_path)        # 解析得到box信息，格式为[[x_min,y_min,x_max,y_max,name]]
                 labels = [coord[4] for coord in coords]
+                polys = [coord[5] for coord in coords]
                 coords = [coord[:4] for coord in coords]
+
                 while cnt < need_aug_num:
                     # show_pic(img, coords)    # 原图
                     name = basename + '_' + str(cnt) + ".jpg"
                     print(' Generating image: %s\n' % name)
-                    auged_img, auged_bboxes = dataAug.dataAugment(img, coords)
+                    auged_img, auged_bboxes, auged_polys = dataAug.dataAugment(img, coords, polys)
                     assert (len(auged_bboxes) == len(coords))
+                    assert (len(auged_polys) == len(polys))
                     cv2.imwrite(os.path.join(target_pic_root_path, name), auged_img)
                     auged_coords = auged_bboxes.copy()
                     for i in range(0, len(auged_bboxes)):
                         auged_coords[i].append(labels[i])
+                        auged_coords[i].append(auged_polys[i])
                     generate_xml(name, auged_bboxes, auged_img.shape, target_xml_root_path)
                     cnt += 1
 

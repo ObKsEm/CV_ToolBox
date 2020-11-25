@@ -23,7 +23,9 @@ def parse_xml(xml_path):
         y_min = float(box[1].text)
         x_max = float(box[2].text)
         y_max = float(box[3].text)
-        coords.append([x_min, y_min, x_max, y_max, name])
+        poly = obj.find("polys")
+        poly = list(poly)
+        coords.append([x_min, y_min, x_max, y_max, name, poly])
     return coords
 
 
